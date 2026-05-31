@@ -116,26 +116,73 @@ for N in spatial_grids:
     x, ex_s, fw_s, bw_s, cn_s, lam_s = run_comparison(L, T, alpha, N, M=M_stable, case_name="Stable")
     x, ex_u, fw_u, bw_u, cn_u, lam_u = run_comparison(L, T, alpha, N, M=M_unstable, case_name="Large Step (Unstable)")
 
-    # Plotting
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    # ==========================================
+    # FIGURE 1: NUMERICAL SOLUTIONS
+    # ==========================================
+    fig_sol, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
 
+    # --- Stable Solutions ---
     ax1.plot(x, ex_s, 'k-', linewidth=3, label='Exact')
     ax1.plot(x, fw_s, 'ro--', markersize=4, label='Forward', alpha=0.7)
     ax1.plot(x, bw_s, 'bs-.', markersize=4, label='Backward', alpha=0.7)
     ax1.plot(x, cn_s, 'g^:', markersize=4, label='Crank-Nicolson', alpha=0.7)
-    ax1.set_title(f'Stable Case ($\\lambda = {lam_s:.2f}, h = {h:.3f}$)')
+    ax1.set_title(f'Stable Case Solutions ($\\lambda = {lam_s:.2f}, h = {h:.3f}, k = {k_stable:.4f}$)')
+    ax1.set_xlabel('Position (x)')
     ax1.set_ylabel('Temperature u(x,T)')
     ax1.legend()
     ax1.grid(True)
 
+    # --- Unstable Solutions ---
     ax2.plot(x, ex_u, 'k-', linewidth=3, label='Exact')
-    fw_u_clipped = np.clip(fw_u, -0.2, 0.8) 
-    ax2.plot(x, fw_u_clipped, 'ro--', markersize=4, label='Forward (Exploded)', alpha=0.5)
+    fw_u_clipped = np.clip(fw_u, -0.2, 0.8) # Keeps the explosion from breaking the graph
+    ax2.plot(x, fw_u_clipped, 'ro--', markersize=4, label='Forward (Clipped)', alpha=0.5)
     ax2.plot(x, bw_u, 'bs-.', markersize=4, label='Backward', alpha=0.7)
     ax2.plot(x, cn_u, 'g^:', markersize=4, label='Crank-Nicolson', alpha=0.7)
-    ax2.set_title(f'Large Step Case ($\\lambda = {lam_u:.2f}, h = {h:.3f}$)\nNotice forward-diff becomes Unstable')
+    
+    if N == 10:
+        dynamic_title = f'Unstable Regime: Error Not Yet Visible (5 steps)\n($\\lambda = {lam_u:.2f}, h = {h:.3f}, k = {k_unstable:.4f}$)'
+    else:
+        dynamic_title = f'Unstable Regime: Catastrophic Failure (20 steps)\n($\\lambda = {lam_u:.2f}, h = {h:.3f}, k = {k_unstable:.4f}$)'
+        
+    ax2.set_title(dynamic_title)
+    ax2.set_xlabel('Position (x)')
+    ax2.set_ylabel('Temperature u(x,T)')
     ax2.legend()
     ax2.grid(True)
 
-    plt.tight_layout()
+    fig_sol.tight_layout()
+
+    # ==========================================
+    # FIGURE 2: ABSOLUTE ERRORS
+    # ==========================================
+    fig_err, (ax3, ax4) = plt.subplots(1, 2, figsize=(14, 6))
+
+    # --- Stable Errors ---
+    ax3.plot(x, np.abs(fw_s - ex_s), 'r--', linewidth=2, label='Forward Error')
+    ax3.plot(x, np.abs(bw_s - ex_s), 'b-.', linewidth=2, label='Backward Error')
+    ax3.plot(x, np.abs(cn_s - ex_s), 'g.-', markersize=8, linewidth=2, label='Crank-Nicolson Error')
+    ax3.set_title(f'Absolute Errors: Stable Case ($\\lambda = {lam_s:.2f}$)\nNotice CN is the most accurate')
+    ax3.set_xlabel('Position (x)')
+    ax3.set_ylabel('Absolute Error |u - w|')
+    ax3.ticklabel_format(axis='y', style='sci', scilimits=(0,0)) # Forces scientific notation
+    ax3.legend()
+    ax3.grid(True)
+
+    # --- Unstable Errors ---
+    # We clip the unstable forward error to 0.05, otherwise the explosion 
+    # will make the y-axis so massive that you won't be able to see the Backward/CN errors!
+    err_fw_u = np.clip(np.abs(fw_u - ex_u), 0, 0.05) 
+    
+    ax4.plot(x, err_fw_u, 'r--', linewidth=2, label='Forward Error (Exploding/Clipped)')
+    ax4.plot(x, np.abs(bw_u - ex_u), 'b-.', linewidth=2, label='Backward Error')
+    ax4.plot(x, np.abs(cn_u - ex_u), 'g.-', markersize=8, linewidth=2, label='Crank-Nicolson Error')
+    ax4.set_title(f'Absolute Errors: Unstable Case ($\\lambda = {lam_u:.2f}$)\nNotice Backward dampens more than CN')
+    ax4.set_xlabel('Position (x)')
+    ax4.set_ylabel('Absolute Error |u - w|')
+    ax4.legend()
+    ax4.grid(True)
+
+    fig_err.tight_layout()
+    
+    # Show both figures at the same time
     plt.show()

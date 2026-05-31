@@ -120,8 +120,9 @@ results_table = {
     "GS Iterations": []
 }
 
-# Create figures
-fig = plt.figure(figsize=(18, 12))
+# Create two separate figures
+fig_sol = plt.figure(figsize=(18, 12)) # For Surfaces and Solutions
+fig_err = plt.figure(figsize=(18, 5))  # Exclusively for Absolute Errors
 
 for idx, h in enumerate(step_sizes):
     print(f"--- Solving for grid size h = {h} ---")
@@ -132,65 +133,88 @@ for idx, h in enumerate(step_sizes):
     # 2. Gauss-Seidel Solver
     _, _, W_gs, iters, t_gs = solve_gauss_seidel(h)
     
-    # Store metrics
+    # Store metrics for Table 1
     results_table["h"].append(h)
     results_table["Direct Time (s)"].append(f"{t_dir:.6f}")
     results_table["GS Time (s)"].append(f"{t_gs:.6f}")
     results_table["GS Iterations"].append(iters)
-    # --- NEW: Calculate Exact Solution and Error ---
+
+    # --- Calculate Exact Solution and Error ---
     X, Y = np.meshgrid(x, y)
     W_exact = 100 * X * Y
     
     # Calculate absolute error for the interior points
-    # (Excluding boundaries since error there is 0)
     abs_error_matrix = np.abs(W_dir - W_exact)
     max_abs_error = np.max(abs_error_matrix)
     print(f"Max Absolute Error against Exact Solution u=100xy: {max_abs_error:.2e}")
     
     # Calculate Max Difference between methods
-    max_diff = np.max(np.abs(W_dir - W_gs))
+    diff_matrix = np.abs(W_dir - W_gs)
+    max_diff = np.max(diff_matrix)
     print(f"Max difference between Direct and GS: {max_diff:.2e}\n")
 
-    # --- Plotting the Surface (Using Direct Solver Results) ---
-    X, Y = np.meshgrid(x, y)
-    
-    # 3D Surface Plot
-    ax1 = fig.add_subplot(2, 3, idx + 1, projection='3d')
+    # --- Plotting the Surface and Contours ---
+    # 1. 3D Surface Plot (Top Row of Solution Figure)
+    ax1 = fig_sol.add_subplot(2, 3, idx + 1, projection='3d')
     surf = ax1.plot_surface(X, Y, W_dir.T, cmap='viridis', edgecolor='none')
     ax1.set_title(f'3D Surface (h={h})')
     ax1.set_xlabel('x')
     ax1.set_ylabel('y')
     ax1.set_zlabel('u(x,y)')
     
-    # 2D Contour Plot
-    ax2 = fig.add_subplot(2, 3, idx + 4)
-    contour = ax2.contourf(X, Y, W_dir.T, levels=20, cmap='viridis')
-    fig.colorbar(contour, ax=ax2)
-    ax2.set_title(f'Contour Map (h={h})')
+    # 2. 2D Contour Map of Solution (Bottom Row of Solution Figure)
+    ax2 = fig_sol.add_subplot(2, 3, idx + 4)
+    contour_sol = ax2.contourf(X, Y, W_dir.T, levels=20, cmap='viridis')
+    fig_sol.colorbar(contour_sol, ax=ax2)
+    ax2.set_title(f'Solution Contour (h={h})')
     ax2.set_xlabel('x')
     ax2.set_ylabel('y')
 
-plt.tight_layout()
+    # 3. 2D Contour Map of Absolute Error (Placed in the separate Error Figure)
+    ax3 = fig_err.add_subplot(1, 3, idx + 1)
+    contour_err = ax3.contourf(X, Y, abs_error_matrix.T, levels=20, cmap='magma')
+    fig_err.colorbar(contour_err, ax=ax3)
+    ax3.set_title(f'Absolute Error Contour (h={h})')
+    ax3.set_xlabel('x')
+    ax3.set_ylabel('y')
+
+fig_sol.tight_layout()
+fig_err.tight_layout()
 plt.show()
 
-fig2, ax_line = plt.subplots(figsize=(8, 6))
+# --- Print Table 1: Computational Cost ---
+print("\n=======================================================")
+print("Table 1: Computational Cost Comparison")
+print("=======================================================")
+df_results = pd.DataFrame(results_table)
+print(df_results.to_string(index=False))
 
-for idx, h in enumerate(step_sizes):
-    # Re-run the direct solver to get the data for this specific h
-    x, y, W_dir, _ = solve_direct(h)
-    
-    # Find the index closest to y = 0.5
-    y_mid_idx = int(0.5 / h) 
-    
-    # Plot the temperature profile along that slice
-    ax_line.plot(x, W_dir[:, y_mid_idx], marker='o', label=f'h = {h}')
+# --- Print Exact vs Numerical vs Error Table for a Cross-Section ---
+print("\n=======================================================")
+print("Table: Exact vs Numerical vs Error for h = 0.25 at slice y = 0.5")
+print("=======================================================")
 
-ax_line.set_title('Cross-Section Temperature Profile at y = 0.5')
-ax_line.set_xlabel('x-coordinate')
-ax_line.set_ylabel('Temperature u(x, 0.5)')
-ax_line.legend()
-ax_line.grid(True)
-plt.show()
+h_table = 0.25
+x_t, y_t, W_dir_t, _ = solve_direct(h_table)
+_, _, W_gs_t, _, _ = solve_gauss_seidel(h_table)
+
+# Find the index for the centerline y = 0.5
+y_mid_idx = int(0.5 / h_table)
+
+# Calculate exact solution at y = 0.5
+exact_u = 100 * x_t * y_t[y_mid_idx]
+
+# Create comparison DataFrame
+df_error_table = pd.DataFrame({
+    "x": x_t,
+    "Exact u": exact_u,
+    "Direct w": W_dir_t[:, y_mid_idx],
+    "GS w": W_gs_t[:, y_mid_idx],
+    "Error (Direct)": np.abs(W_dir_t[:, y_mid_idx] - exact_u),
+    "Error (GS)": np.abs(W_gs_t[:, y_mid_idx] - exact_u)
+})
+
+print(df_error_table.to_string(index=False, float_format=lambda v: f"{v:.4e}"))
 
 # --- Print Full Numerical Solution Tables for ALL h ---
 print("\n=======================================================")
@@ -199,11 +223,10 @@ print("=======================================================")
 
 for h in step_sizes:
     print(f"\n--- Numerical Solution Grid for h = {h} ---")
-    # Re-run direct solver for the specific grid to get the matrix
     x_grid, y_grid, W_grid, _ = solve_direct(h)
 
     # Transpose so rows are 'y' and columns are 'x', then flip [::-1] 
-    # so y=0 is at the bottom of the printed table, matching the physical geometry.
+    # so y=0 is at the bottom of the printed table.
     W_display = W_grid.T[::-1]
     y_display = y_grid[::-1]
 
@@ -213,8 +236,4 @@ for h in step_sizes:
         columns=[f"x={xv:.4f}" for xv in x_grid]
     )
     
-    # Print the DataFrame. We use a slightly smaller float format 
-    # to help the larger grids fit on screen.
     print(df_grid.to_string(float_format=lambda v: f"{v:.2f}"))
-
-
