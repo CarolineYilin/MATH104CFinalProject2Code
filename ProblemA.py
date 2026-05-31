@@ -137,6 +137,15 @@ for idx, h in enumerate(step_sizes):
     results_table["Direct Time (s)"].append(f"{t_dir:.6f}")
     results_table["GS Time (s)"].append(f"{t_gs:.6f}")
     results_table["GS Iterations"].append(iters)
+    # --- NEW: Calculate Exact Solution and Error ---
+    X, Y = np.meshgrid(x, y)
+    W_exact = 100 * X * Y
+    
+    # Calculate absolute error for the interior points
+    # (Excluding boundaries since error there is 0)
+    abs_error_matrix = np.abs(W_dir - W_exact)
+    max_abs_error = np.max(abs_error_matrix)
+    print(f"Max Absolute Error against Exact Solution u=100xy: {max_abs_error:.2e}")
     
     # Calculate Max Difference between methods
     max_diff = np.max(np.abs(W_dir - W_gs))
