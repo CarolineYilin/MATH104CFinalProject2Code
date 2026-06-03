@@ -97,92 +97,54 @@ def run_comparison(L, T, alpha, N, M, case_name):
 
 # --- Execution & Plotting ---
 L, T, alpha = 1.0, 0.1, 1.0
-
-# Loop through multiple spatial grids to fulfill project requirements
 spatial_grids = [10, 20]
 
-for N in spatial_grids:
-    h = L / N
+# Define the regimes we want to test
+regimes = {
+    "Stable": 0.4,
+    "Unstable": 2.0,
+    "Massive": 10.0
+}
+
+def plot_regime_and_print_tables(regime_name, target_lambda, title_desc):
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig.suptitle(f'{regime_name} Regime Comparison | {title_desc}', fontsize=16, fontweight='bold')
     
-    # Calculate M to maintain lambda = 0.4 (Stable)
-    k_stable = 0.4 * (h**2)
-    M_stable = int(round(T / k_stable))
-    
-    # Calculate M to maintain lambda = 2.0 (Unstable)
-    k_unstable = 2.0 * (h**2)
-    M_unstable = int(round(T / k_unstable))
-
-    # Run comparisons
-    x, ex_s, fw_s, bw_s, cn_s, lam_s = run_comparison(L, T, alpha, N, M=M_stable, case_name="Stable")
-    x, ex_u, fw_u, bw_u, cn_u, lam_u = run_comparison(L, T, alpha, N, M=M_unstable, case_name="Large Step (Unstable)")
-
-    # ==========================================
-    # FIGURE 1: NUMERICAL SOLUTIONS
-    # ==========================================
-    fig_sol, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
-
-    # --- Stable Solutions ---
-    ax1.plot(x, ex_s, 'k-', linewidth=3, label='Exact')
-    ax1.plot(x, fw_s, 'ro--', markersize=4, label='Forward', alpha=0.7)
-    ax1.plot(x, bw_s, 'bs-.', markersize=4, label='Backward', alpha=0.7)
-    ax1.plot(x, cn_s, 'g^:', markersize=4, label='Crank-Nicolson', alpha=0.7)
-    ax1.set_title(f'Stable Case Solutions ($\\lambda = {lam_s:.2f}, h = {h:.3f}, k = {k_stable:.4f}$)')
-    ax1.set_xlabel('Position (x)')
-    ax1.set_ylabel('Temperature u(x,T)')
-    ax1.legend()
-    ax1.grid(True)
-
-    # --- Unstable Solutions ---
-    ax2.plot(x, ex_u, 'k-', linewidth=3, label='Exact')
-    fw_u_clipped = np.clip(fw_u, -0.2, 0.8) # Keeps the explosion from breaking the graph
-    ax2.plot(x, fw_u_clipped, 'ro--', markersize=4, label='Forward (Clipped)', alpha=0.5)
-    ax2.plot(x, bw_u, 'bs-.', markersize=4, label='Backward', alpha=0.7)
-    ax2.plot(x, cn_u, 'g^:', markersize=4, label='Crank-Nicolson', alpha=0.7)
-    
-    if N == 10:
-        dynamic_title = f'Unstable Regime: Error Not Yet Visible (5 steps)\n($\\lambda = {lam_u:.2f}, h = {h:.3f}, k = {k_unstable:.4f}$)'
-    else:
-        dynamic_title = f'Unstable Regime: Catastrophic Failure (20 steps)\n($\\lambda = {lam_u:.2f}, h = {h:.3f}, k = {k_unstable:.4f}$)'
+    for col, N in enumerate(spatial_grids):
+        h = L / N
+        # Calculate M to maintain the target lambda for this specific N
+        k_target = target_lambda * (h**2)
+        M = max(1, int(round(T / k_target)))
         
-    ax2.set_title(dynamic_title)
-    ax2.set_xlabel('Position (x)')
-    ax2.set_ylabel('Temperature u(x,T)')
-    ax2.legend()
-    ax2.grid(True)
+        # Run comparison (this will print the tables to the console!)
+        x, ex, fw, bw, cn, lam = run_comparison(L, T, alpha, N, M, f"{regime_name} (N={N})")
+        
+        # Top Row: Solutions
+        axes[0, col].plot(x, ex, 'k-', linewidth=3, label='Exact')
+        fw_clipped = np.clip(fw, -0.2, 0.8) # Keep explosions visible but contained
+        axes[0, col].plot(x, fw_clipped, 'ro--', markersize=4, label='Forward (Clipped)', alpha=0.6)
+        axes[0, col].plot(x, bw, 'bs-.', markersize=4, label='Backward', alpha=0.8)
+        axes[0, col].plot(x, cn, 'g^:', markersize=4, label='Crank-Nicolson', alpha=0.8)
+        axes[0, col].set_title(f'Solutions (h={h:.3f}, $\\lambda$={lam:.2f})')
+        axes[0, col].set_xlabel('Position (x)'); axes[0, col].set_ylabel('Temperature')
+        axes[0, col].legend(); axes[0, col].grid(True)
+        
+        # Bottom Row: Errors
+        err_fw = np.clip(np.abs(fw - ex), 0, 0.05)
+        axes[1, col].plot(x, err_fw, 'r--', linewidth=2, label='Forward Error')
+        axes[1, col].plot(x, np.abs(bw - ex), 'b-.', linewidth=2, label='Backward Error')
+        axes[1, col].plot(x, np.abs(cn - ex), 'g.-', markersize=6, linewidth=2, label='Crank-Nicolson Error')
+        axes[1, col].set_title(f'Absolute Errors (h={h:.3f})')
+        axes[1, col].set_xlabel('Position (x)'); axes[1, col].set_ylabel('Absolute Error')
+        if regime_name == "Stable": axes[1, col].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+        axes[1, col].legend(); axes[1, col].grid(True)
 
-    fig_sol.tight_layout()
+    fig.tight_layout()
+    plt.subplots_adjust(top=0.90)
 
-    # ==========================================
-    # FIGURE 2: ABSOLUTE ERRORS
-    # ==========================================
-    fig_err, (ax3, ax4) = plt.subplots(1, 2, figsize=(14, 6))
+# Generate everything grouped by Regime (Prints Tables -> Shows Figure)
+plot_regime_and_print_tables("Stable", 0.4, "Demonstrating Convergence and Accuracy (Forward is Stable)")
+plot_regime_and_print_tables("Unstable", 2.0, "Demonstrating Error Propagation (Forward Explodes on Fine Grid)")
+plot_regime_and_print_tables("Massive", 10.0, "Demonstrating Extreme Implicit Dampening (Backward Loses Heat)")
 
-    # --- Stable Errors ---
-    ax3.plot(x, np.abs(fw_s - ex_s), 'r--', linewidth=2, label='Forward Error')
-    ax3.plot(x, np.abs(bw_s - ex_s), 'b-.', linewidth=2, label='Backward Error')
-    ax3.plot(x, np.abs(cn_s - ex_s), 'g.-', markersize=8, linewidth=2, label='Crank-Nicolson Error')
-    ax3.set_title(f'Absolute Errors: Stable Case ($\\lambda = {lam_s:.2f}$)\nNotice CN is the most accurate')
-    ax3.set_xlabel('Position (x)')
-    ax3.set_ylabel('Absolute Error |u - w|')
-    ax3.ticklabel_format(axis='y', style='sci', scilimits=(0,0)) # Forces scientific notation
-    ax3.legend()
-    ax3.grid(True)
-
-    # --- Unstable Errors ---
-    # We clip the unstable forward error to 0.05, otherwise the explosion 
-    # will make the y-axis so massive that you won't be able to see the Backward/CN errors!
-    err_fw_u = np.clip(np.abs(fw_u - ex_u), 0, 0.05) 
-    
-    ax4.plot(x, err_fw_u, 'r--', linewidth=2, label='Forward Error (Exploding/Clipped)')
-    ax4.plot(x, np.abs(bw_u - ex_u), 'b-.', linewidth=2, label='Backward Error')
-    ax4.plot(x, np.abs(cn_u - ex_u), 'g.-', markersize=8, linewidth=2, label='Crank-Nicolson Error')
-    ax4.set_title(f'Absolute Errors: Unstable Case ($\\lambda = {lam_u:.2f}$)\nNotice Backward dampens more than CN')
-    ax4.set_xlabel('Position (x)')
-    ax4.set_ylabel('Absolute Error |u - w|')
-    ax4.legend()
-    ax4.grid(True)
-
-    fig_err.tight_layout()
-    
-    # Show both figures at the same time
-    plt.show()
+plt.show()
