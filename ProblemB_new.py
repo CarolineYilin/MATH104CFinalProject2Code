@@ -96,17 +96,10 @@ def run_comparison(L, T, alpha, N, M, case_name):
     return x, u_exact, w_fwd, w_bwd, w_cn, lam
 
 # --- Execution & Plotting ---
-L, T, alpha = 1.0, 1.5, 1.0
+L, alpha = 1.0, 1.0
 spatial_grids = [10, 20]
 
-# Define the regimes we want to test
-regimes = {
-    "Stable": 0.4,
-    "Unstable": 2.0,
-    "Massive": 10.0
-}
-
-def plot_regime_and_print_tables(regime_name, target_lambda, title_desc):
+def plot_regime_and_print_tables(regime_name, target_lambda, T_val, title_desc):
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     fig.suptitle(f'{regime_name} Regime Comparison | {title_desc}', fontsize=16, fontweight='bold')
     
@@ -114,10 +107,10 @@ def plot_regime_and_print_tables(regime_name, target_lambda, title_desc):
         h = L / N
         # Calculate M to maintain the target lambda for this specific N
         k_target = target_lambda * (h**2)
-        M = max(1, int(round(T / k_target)))
+        M = max(1, int(round(T_val / k_target)))
         
         # Run comparison (this will print the tables to the console!)
-        x, ex, fw, bw, cn, lam = run_comparison(L, T, alpha, N, M, f"{regime_name} (N={N})")
+        x, ex, fw, bw, cn, lam = run_comparison(L, T_val, alpha, N, M, f"{regime_name} (N={N}, T={T_val})")
         
         # Top Row: Solutions
         axes[0, col].plot(x, ex, 'k-', linewidth=3, label='Exact')
@@ -143,9 +136,10 @@ def plot_regime_and_print_tables(regime_name, target_lambda, title_desc):
     fig.tight_layout()
     plt.subplots_adjust(top=0.90)
 
-# Generate everything grouped by Regime (Prints Tables -> Shows Figure)
-plot_regime_and_print_tables("Stable", 0.4, "Demonstrating Convergence and Accuracy (Forward is Stable)")
-plot_regime_and_print_tables("Unstable", 2.0, "Demonstrating Error Propagation (Forward Explodes on Fine Grid)")
-plot_regime_and_print_tables("Massive", 10.0, "Demonstrating Implicit Stiffening (Backward Retains Artificial Heat)")
+# Generate everything grouped by Regime (Prints Tables -> Shows Figures)
+plot_regime_and_print_tables("Stable", 0.4, 1.5, "Convergence and Accuracy (T=1.5)")
+plot_regime_and_print_tables("Unstable (Hidden)", 2.0, 0.1, "Demonstrating 'Hidden' Instability (T=0.1)")
+plot_regime_and_print_tables("Unstable (Exploding)", 2.0, 1.5, "Demonstrating Error Propagation (T=1.5)")
+plot_regime_and_print_tables("Massive", 10.0, 1.5, "Demonstrating Implicit Stiffening (T=1.5)")
 
 plt.show()
