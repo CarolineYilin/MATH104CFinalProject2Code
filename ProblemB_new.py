@@ -96,7 +96,7 @@ def run_comparison(L, T, alpha, N, M, case_name):
     return x, u_exact, w_fwd, w_bwd, w_cn, lam
 
 # --- Execution & Plotting ---
-L, T, alpha = 1.0, 0.5, 1.0
+L, T, alpha = 1.0, 1.5, 1.0
 spatial_grids = [10, 20]
 
 # Define the regimes we want to test
@@ -121,7 +121,8 @@ def plot_regime_and_print_tables(regime_name, target_lambda, title_desc):
         
         # Top Row: Solutions
         axes[0, col].plot(x, ex, 'k-', linewidth=3, label='Exact')
-        fw_clipped = np.clip(fw, -0.2, 0.8) # Keep explosions visible but contained
+        # Widen the clip bounds so the wiggles are visible before flatlining
+        fw_clipped = np.clip(fw, -1.5, 1.5)
         axes[0, col].plot(x, fw_clipped, 'ro--', markersize=4, label='Forward (Clipped)', alpha=0.6)
         axes[0, col].plot(x, bw, 'bs-.', markersize=4, label='Backward', alpha=0.8)
         axes[0, col].plot(x, cn, 'g^:', markersize=4, label='Crank-Nicolson', alpha=0.8)
