@@ -96,7 +96,7 @@ def run_comparison(L, T, alpha, N, M, case_name):
     return x, u_exact, w_fwd, w_bwd, w_cn, lam
 
 # --- Execution & Plotting ---
-L, T, alpha = 1.0, 0.1, 1.0
+L, T, alpha = 1.0, 0.5, 1.0
 spatial_grids = [10, 20]
 
 # Define the regimes we want to test
@@ -145,6 +145,6 @@ def plot_regime_and_print_tables(regime_name, target_lambda, title_desc):
 # Generate everything grouped by Regime (Prints Tables -> Shows Figure)
 plot_regime_and_print_tables("Stable", 0.4, "Demonstrating Convergence and Accuracy (Forward is Stable)")
 plot_regime_and_print_tables("Unstable", 2.0, "Demonstrating Error Propagation (Forward Explodes on Fine Grid)")
-plot_regime_and_print_tables("Massive", 10.0, "Demonstrating Extreme Implicit Dampening (Backward Loses Heat)")
+plot_regime_and_print_tables("Massive", 10.0, "Demonstrating Implicit Stiffening (Backward Retains Artificial Heat)")
 
 plt.show()
