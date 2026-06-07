@@ -18,11 +18,6 @@ def setup_grid_and_boundaries(h):
     W = np.zeros((n_intervals + 1, n_intervals + 1))
     
     # Apply Boundary Conditions
-    # u(0, y) = 0  -> Left boundary (W[0, :])
-    # u(x, 0) = 0  -> Bottom boundary (W[:, 0])
-    # u(x, 1) = 100x -> Top boundary (W[:, -1])
-    # u(1, y) = 100y -> Right boundary (W[-1, :])
-    
     for i in range(n_intervals + 1):
         W[i, -1] = 100 * x[i]  # Top
         W[-1, i] = 100 * y[i]  # Right
@@ -46,28 +41,20 @@ def solve_direct(h):
             A[k, k] = 4
             
             # Left neighbor
-            if i > 1:
-                A[k, k - 1] = -1
-            else:
-                b[k] += W[0, j] # Add left boundary to RHS
+            if i > 1: A[k, k - 1] = -1
+            else: b[k] += W[0, j]
                 
             # Right neighbor
-            if i < N:
-                A[k, k + 1] = -1
-            else:
-                b[k] += W[N + 1, j] # Add right boundary to RHS
+            if i < N: A[k, k + 1] = -1
+            else: b[k] += W[N + 1, j]
                 
             # Bottom neighbor
-            if j > 1:
-                A[k, k - N] = -1
-            else:
-                b[k] += W[i, 0] # Add bottom boundary to RHS
+            if j > 1: A[k, k - N] = -1
+            else: b[k] += W[i, 0]
                 
             # Top neighbor
-            if j < N:
-                A[k, k + N] = -1
-            else:
-                b[k] += W[i, N + 1] # Add top boundary to RHS
+            if j < N: A[k, k + N] = -1
+            else: b[k] += W[i, N + 1]
 
     # Solve the sparse linear system
     A_csr = A.tocsr()
@@ -112,49 +99,46 @@ def solve_gauss_seidel(h, tol=1e-5, max_iter=10000):
 # --- Execution and Plotting ---
 step_sizes = [1/4, 1/8, 1/16]
 
-# Data structures to save results for your report
+# Data structures to save results
 results_table = {
     "h": [],
     "Direct Time (s)": [],
     "GS Time (s)": [],
     "GS Iterations": []
 }
+max_errors = [] # Track max errors for line graph
 
-# Create two separate figures
-fig_sol = plt.figure(figsize=(18, 12)) # For Surfaces and Solutions
-fig_err = plt.figure(figsize=(18, 5))  # Exclusively for Absolute Errors
+# Create figures
+fig_sol = plt.figure(figsize=(18, 12)) 
+fig_err = plt.figure(figsize=(18, 5))  
 
 for idx, h in enumerate(step_sizes):
     print(f"--- Solving for grid size h = {h} ---")
     
-    # 1. Direct Solver
+    # Solvers
     x, y, W_dir, t_dir = solve_direct(h)
-    
-    # 2. Gauss-Seidel Solver
     _, _, W_gs, iters, t_gs = solve_gauss_seidel(h)
     
-    # Store metrics for Table 1
+    # Store metrics
     results_table["h"].append(h)
     results_table["Direct Time (s)"].append(f"{t_dir:.6f}")
     results_table["GS Time (s)"].append(f"{t_gs:.6f}")
     results_table["GS Iterations"].append(iters)
 
-    # --- Calculate Exact Solution and Error ---
+    # Calculate Exact Solution and Error
     X, Y = np.meshgrid(x, y)
     W_exact = 100 * X * Y
     
-    # Calculate absolute error for the interior points
     abs_error_matrix = np.abs(W_dir - W_exact)
     max_abs_error = np.max(abs_error_matrix)
+    max_errors.append(max_abs_error) # Save for plotting
     print(f"Max Absolute Error against Exact Solution u=100xy: {max_abs_error:.2e}")
     
-    # Calculate Max Difference between methods
     diff_matrix = np.abs(W_dir - W_gs)
     max_diff = np.max(diff_matrix)
     print(f"Max difference between Direct and GS: {max_diff:.2e}\n")
 
-    # --- Plotting the Surface and Contours ---
-    # 1. 3D Surface Plot (Top Row of Solution Figure)
+    # Plotting
     ax1 = fig_sol.add_subplot(2, 3, idx + 1, projection='3d')
     surf = ax1.plot_surface(X, Y, W_dir.T, cmap='viridis', edgecolor='none')
     ax1.set_title(f'3D Surface (h={h})')
@@ -162,7 +146,6 @@ for idx, h in enumerate(step_sizes):
     ax1.set_ylabel('y')
     ax1.set_zlabel('u(x,y)')
     
-    # 2. 2D Contour Map of Solution (Bottom Row of Solution Figure)
     ax2 = fig_sol.add_subplot(2, 3, idx + 4)
     contour_sol = ax2.contourf(X, Y, W_dir.T, levels=20, cmap='viridis')
     fig_sol.colorbar(contour_sol, ax=ax2)
@@ -170,7 +153,6 @@ for idx, h in enumerate(step_sizes):
     ax2.set_xlabel('x')
     ax2.set_ylabel('y')
 
-    # 3. 2D Contour Map of Absolute Error (Placed in the separate Error Figure)
     ax3 = fig_err.add_subplot(1, 3, idx + 1)
     contour_err = ax3.contourf(X, Y, abs_error_matrix.T, levels=20, cmap='magma')
     fig_err.colorbar(contour_err, ax=ax3)
@@ -182,6 +164,28 @@ fig_sol.tight_layout()
 fig_err.tight_layout()
 plt.show()
 
+# --- Plotting Mesh Refinement Behavior (Line Graphs) ---
+fig_lines, (ax_err_line, ax_iter_line) = plt.subplots(1, 2, figsize=(14, 5))
+
+# Error Behavior
+ax_err_line.plot(step_sizes, max_errors, marker='o', color='red', linestyle='-')
+ax_err_line.set_title('Error Behavior under Mesh Refinement')
+ax_err_line.set_xlabel('Mesh Size (h)')
+ax_err_line.set_ylabel('Max Absolute Error')
+ax_err_line.grid(True)
+ax_err_line.invert_xaxis()
+
+# Iteration Count
+ax_iter_line.plot(step_sizes, results_table["GS Iterations"], marker='o', color='blue', linestyle='-')
+ax_iter_line.set_title('Gauss-Seidel Iteration Count under Mesh Refinement')
+ax_iter_line.set_xlabel('Mesh Size (h)')
+ax_iter_line.set_ylabel('Iterations Required to Converge')
+ax_iter_line.grid(True)
+ax_iter_line.invert_xaxis()
+
+plt.tight_layout()
+plt.show()
+
 # --- Print Table 1: Computational Cost ---
 print("\n=======================================================")
 print("Table 1: Computational Cost Comparison")
@@ -189,51 +193,39 @@ print("=======================================================")
 df_results = pd.DataFrame(results_table)
 print(df_results.to_string(index=False))
 
-# --- Print Exact vs Numerical vs Error Table for a Cross-Section ---
+# --- Print/Export Comprehensive Tables for ALL h ---
 print("\n=======================================================")
-print("Table: Exact vs Numerical vs Error for h = 0.25 at slice y = 0.5")
-print("=======================================================")
-
-h_table = 0.25
-x_t, y_t, W_dir_t, _ = solve_direct(h_table)
-_, _, W_gs_t, _, _ = solve_gauss_seidel(h_table)
-
-# Find the index for the centerline y = 0.5
-y_mid_idx = int(0.5 / h_table)
-
-# Calculate exact solution at y = 0.5
-exact_u = 100 * x_t * y_t[y_mid_idx]
-
-# Create comparison DataFrame
-df_error_table = pd.DataFrame({
-    "x": x_t,
-    "Exact u": exact_u,
-    "Direct w": W_dir_t[:, y_mid_idx],
-    "GS w": W_gs_t[:, y_mid_idx],
-    "Error (Direct)": np.abs(W_dir_t[:, y_mid_idx] - exact_u),
-    "Error (GS)": np.abs(W_gs_t[:, y_mid_idx] - exact_u)
-})
-
-print(df_error_table.to_string(index=False, float_format=lambda v: f"{v:.4e}"))
-
-# --- Print Full Numerical Solution Tables for ALL h ---
-print("\n=======================================================")
-print("Full Numerical Solution Grids u(x,y)")
+print("Full Coordinate Tables: Exact vs Numerical vs Error")
 print("=======================================================")
 
 for h in step_sizes:
-    print(f"\n--- Numerical Solution Grid for h = {h} ---")
-    x_grid, y_grid, W_grid, _ = solve_direct(h)
-
-    # Transpose so rows are 'y' and columns are 'x', then flip [::-1] 
-    # so y=0 is at the bottom of the printed table.
-    W_display = W_grid.T[::-1]
-    y_display = y_grid[::-1]
-
-    df_grid = pd.DataFrame(
-        W_display, 
-        index=[f"y={yv:.4f}" for yv in y_display], 
-        columns=[f"x={xv:.4f}" for xv in x_grid]
-    )
+    print(f"\n--- Data Table for h = {h} ---")
+    x, y, W_dir, _ = solve_direct(h)
     
-    print(df_grid.to_string(float_format=lambda v: f"{v:.2f}"))
+    # Generate meshgrid to get exact coordinates
+    X, Y = np.meshgrid(x, y)
+    W_exact = 100 * X * Y
+    
+    # Flatten the 2D arrays into 1D columns for the table
+    x_flat = X.flatten()
+    y_flat = Y.flatten()
+    exact_flat = W_exact.flatten()
+    num_flat = W_dir.flatten()
+    error_flat = np.abs(exact_flat - num_flat)
+    
+    # Create the DataFrame
+    df_full = pd.DataFrame({
+        "x": x_flat,
+        "y": y_flat,
+        "Exact u": exact_flat,
+        "Numerical w": num_flat,
+        "Abs Error": error_flat
+    })
+    
+    # Print the table (Warning: Output is long for h=1/16)
+    print(df_full.to_string(index=False, float_format=lambda v: f"{v:.4e}"))
+    
+    # Export to CSV for report inclusion (commented out to prevent automatic saving, uncomment if desired)
+    filename = f"ProblemA_Table_h_{str(h).replace('/', '_')}.csv"
+    df_full.to_csv(filename, index=False)
+    print(f"-> Saved data to {filename}")
