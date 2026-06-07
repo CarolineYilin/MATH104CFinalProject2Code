@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import time  # <--- Moved to the top
 from scipy.linalg import solve_banded
 
 # =====================================================================
@@ -79,21 +80,36 @@ if __name__ == "__main__":
     fig2, axes = plt.subplots(2, 3, figsize=(18, 10))
     fig2.suptitle(f'Mesh Refinement Analysis for Square Wave Heat Shock (T={T})', fontsize=16, fontweight='bold')
     
-    for idx, (N, M) in enumerate(test_cases):  # <--- Now loops through N and M together!
+    for idx, (N, M) in enumerate(test_cases): 
         h = L / N
         k = T / M
         x_sq = np.linspace(0, L, N+1)
         u_exact = exact_square_wave(x_sq, T, alpha)
-        fw = solve_forward_sq(L, T, alpha, N, M)
-        bw = solve_backward_sq(L, T, alpha, N, M)
-        cn = solve_crank_nicolson_sq(L, T, alpha, N, M)
         
         # ==========================================
-        # PRINT TABLES TO CONSOLE (Requirement 5)
+        # CALCULATE COMPUTATIONAL COST (TIMING)
         # ==========================================
-        print(f"=======================================================")
+        start_time = time.time()
+        fw = solve_forward_sq(L, T, alpha, N, M)
+        fw_time = time.time() - start_time
+
+        start_time = time.time()
+        bw = solve_backward_sq(L, T, alpha, N, M)
+        bw_time = time.time() - start_time
+
+        start_time = time.time()
+        cn = solve_crank_nicolson_sq(L, T, alpha, N, M)
+        cn_time = time.time() - start_time
+        
+        # ==========================================
+        # PRINT TABLES TO CONSOLE (Requirement 5 & Cost)
+        # ==========================================
+        print(f"\n=======================================================")
         print(f"EXPERIMENT 2: SQUARE WAVE (N={N}, h={h:.3f})")
         print(f"=======================================================")
+        
+        # Print the newly calculated times so you can put them in your LaTeX report!
+        print(f"Cost (s) -> Forward: {fw_time:.6f} | Backward: {bw_time:.6f} | Crank-Nic: {cn_time:.6f}")
         
         df_sq_sol = pd.DataFrame({
             "x": x_sq, "Exact": u_exact, "Forward": fw, "Backward": bw, "Crank-Nic": cn
